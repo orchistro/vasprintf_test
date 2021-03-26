@@ -14,4 +14,3 @@ foo: $(OBJS)
 clean:
 	rm -rf foo *.o
 
-
