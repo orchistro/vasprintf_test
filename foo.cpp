@@ -16,6 +16,10 @@
 #include <chrono>
 #include <locale>
 
+int32_t g_malloc_cnt = 0;
+int32_t g_free_cnt = 0;
+int32_t g_realloc_cnt = 0;
+
 #if !defined(__clang__) && defined(__GNUC__)
 /* Prototypes for our hooks.  */
 static void *my_malloc_hook (size_t, const void *);
@@ -47,7 +51,7 @@ static void* my_malloc_hook(size_t size, const void *caller)
     restoreHooks();
 
     result = malloc (size);
-    printf ("malloc (%u) returns %p\n", (unsigned int) size, result);
+    g_malloc_cnt++;
 
     setupHooks();
 
@@ -59,7 +63,7 @@ static void my_free_hook (void *ptr, const void *caller)
     restoreHooks();
 
     free (ptr);
-    printf ("freed pointer %p\n", ptr);
+    g_free_cnt++;
 
     setupHooks();
 }
@@ -71,7 +75,7 @@ static void *my_realloc_hook (void *ptr, size_t size, const void *caller)
     restoreHooks();
 
     result = realloc(ptr, size);
-    printf ("realloc pointer %p --> %p (size:%zu)\n", ptr, result, size);
+    g_realloc_cnt++;
 
     setupHooks();
 
@@ -79,21 +83,19 @@ static void *my_realloc_hook (void *ptr, size_t size, const void *caller)
 }
 #endif
 
+void init_cnt(void)
+{
+    g_malloc_cnt = 0;
+    g_free_cnt = 0;
+    g_realloc_cnt = 0;
+}
+
 void my_init(void)
 {
 #if !defined(__clang__) && defined(__GNUC__)
     original_malloc_hook = __malloc_hook;
     original_free_hook = __free_hook;
     original_realloc_hook = __realloc_hook;
-
-    setupHooks();
-#endif
-}
-
-void my_final(void)
-{
-#if !defined(__clang__) && defined(__GNUC__)
-    restoreHooks();
 #endif
 }
 
@@ -190,6 +192,7 @@ static std::string makeString_vasprintf(const char *aFormat, ...)
 
     char* sBuffer;
 
+    setupHooks();
     va_start(sAp, aFormat);
     sLen = vasprintf(&sBuffer, aFormat, sAp);
     va_end(sAp);
@@ -197,6 +200,8 @@ static std::string makeString_vasprintf(const char *aFormat, ...)
     if (sLen >= 0)
     {
         std::unique_ptr<char, std::function<void(void*)>> sOwner(sBuffer, [](void* aPtr){ free(aPtr); });
+        restoreHooks();
+
         return std::string(sBuffer, sLen);
     }
     else
@@ -216,6 +221,7 @@ static std::string makeString_vsnprintf(const char *aFormat, ...)
         return std::string();
     }
 
+    setupHooks();
     va_start(sAp, aFormat);
     sLen = std::vsnprintf(nullptr, 0, aFormat, sAp);
     va_end(sAp);
@@ -225,6 +231,7 @@ static std::string makeString_vsnprintf(const char *aFormat, ...)
     va_start(sAp, aFormat);
     (void)std::vsnprintf(sBuffer.get(), sLen + 1, aFormat, sAp);
     va_end(sAp);
+    restoreHooks();
 
     return std::string(sBuffer.get(), sLen);
 }
@@ -268,6 +275,8 @@ typedef std::string method_func(const char *aFormat, ...);
 
 static void test(method_func* method, const char* name, const std::vector<std::string>& vec)
 {
+    init_cnt();
+
     std::cout << "Testing with method " << name;
 
     auto start_time = std::chrono::steady_clock::now();
@@ -284,11 +293,14 @@ static void test(method_func* method, const char* name, const std::vector<std::s
 
     uint64_t elapsed_int = elapsed.count();
     std::cout << "    --> Took " << std::fixed << elapsed_int << "us ";
-    std::cout << "(" << elapsed_int / 1000 << "ms)\n";
+    std::cout << "(" << elapsed_int / 1000 << "ms)";
+    std::cout << "    malloc: " << g_malloc_cnt << "    free: " << g_free_cnt << "    realloc: " << g_realloc_cnt << "\n";
 }
 
 int32_t main(int32_t argc, char* argv[])
 {
+    my_init();
+
     std::cout.imbue(std::locale(""));
 
     std::srand(std::time(0));

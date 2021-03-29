@@ -9,8 +9,8 @@ foo: $(OBJS)
 	gcc -o $@ $^ -lstdc++ -Wall
 
 %.o: %.cpp
-	gcc -std=c++17 -c -g -O2 -Wall -o $@ $<
+	gcc -std=c++17 -c -g -O0 -Wall -o $@ $<
 
 clean:
-	rm -rf foo *.o
+	rm -rf foo *.o core*
 
