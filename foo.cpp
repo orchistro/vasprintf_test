@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdint.h>
+#include <string.h>
 
 #include <vector>
 #include <memory>
@@ -292,16 +293,17 @@ int32_t main(int32_t argc, char* argv[])
 
     std::srand(std::time(0));
 
+    if (argc != 4 && argc != 2)
+    {
+        std::cerr << "Usage: ./foo count min_lenght max_length\n";
+        std::cerr << "       ./foo cpuinfo\n";
+        return -1;
+    }
+
     if (strcmp(argv[1], "cpuinfo") == 0)
     {
         i386_cpuid_caches();
         return 0;
-    }
-
-    if (argc != 4)
-    {
-        std::cerr << "Usage: ./foo count min_lenght max_length\n";
-        return -1;
     }
 
     int32_t count = std::atoi(argv[1]);
