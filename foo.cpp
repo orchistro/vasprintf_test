@@ -81,6 +81,9 @@ static void *my_realloc_hook (void *ptr, size_t size, const void *caller)
 
     return result;
 }
+#else
+#define restoreHooks()
+#define setupHooks()
 #endif
 
 void init_cnt(void)
